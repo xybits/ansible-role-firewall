@@ -1,0 +1,45 @@
+---
+
+# Firewalld zone
+firewalld_zone: public
+
+# List of service names to add to the firewall configuration. These services
+# must be ones that are already known to firewall service
+# for example, those listed in the output of `firewall-cmd --get-services`
+#
+# allow_services:
+#   - service: <service name>
+#     proto: [tcp|udp]             (default: tcp)
+#     immediate: [true|false]      (default: true)
+#     permanent: [true|false]      (default: true)
+#     source: <source with/mask>   (default: ~)
+#     state: [enabled|disabled]    (default: enabled)
+allow_services: []
+
+# Ports to open (IPv4+IPv6) for given firewall zone
+# This is a list of dictionaries that contain a protocol (tcp or udp) with
+# a single port to open, or a port range delimited with a dash.
+#
+# allow_ports:
+#   - port: <port>
+#     proto: [tcp|udp]             (default: tcp)
+#     immediate: [true|false]      (default: true)
+#     permanent: [true|false]      (default: true)
+#     source: <source with/mask>   (default: ~)
+#     state: [enabled|disabled]    (default: enabled)
+allow_ports: []
+
+# Permanently forward local ports (IPv4+IPV6) for given firewall zone,
+# e.g. TCP 80->8080 for webapps.
+# This is a list of dictionaries that contain a protocol (tcp or udp) with
+# a single port to forward to another port on the local system.
+#
+# forward_ports:
+#   - port: <port>
+#     to_port: <port>
+#     proto: [tcp/udp]             (default: tcp)
+#     immediate: [true|false]      (default: true)
+#     permanent: [true|false]      (default: true)
+#     source: <source with/mask>   (default: ~)
+#     state: [enabled|disabled]    (default: enabled)
+forward_ports: []

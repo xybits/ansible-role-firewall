@@ -1,0 +1,95 @@
+---
+
+- name: check > OS
+  assert:
+    that:
+      - ansible_distribution == "CentOS"
+      - ansible_distribution_major_version == "7"
+
+- name: install > Packages
+  yum:
+    name: firewalld
+    state: present
+    update_cache: true
+
+- name: service > Start service
+  systemd:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: config > Create zone
+  firewalld:
+    zone: "{{ firewalld_zone }}"
+    state: present
+    permanent: true
+  register: zone_conf
+
+- name: config > Apply zone change
+  block:
+    - name: services > Reload changes
+      command: firewall-cmd --reload
+    - name: config > Make zone default
+      command: firewall-cmd --set-default-zone={{ firewalld_zone }}
+  when: zone_conf is changed
+
+- name: config > Rules for basic services
+  firewalld:
+    service: "{{ fbs }}"
+    immediate: true
+    permanent: true
+    state: enabled
+    zone: "{{ firewalld_zone }}"
+  with_items: ["ssh", "dhcpv6-client"]
+  loop_control:
+    loop_var: fbs
+
+- name: config > Rules for allow services
+  firewalld:
+    service: "{{ fas.service }}"
+    immediate: "{{ fas.immediate | default(true) }}"
+    permanent: "{{ fas.permanent | default(true) }}"
+    state: "{{ fas.state | default('enabled') }}"
+    source: "{{ fas.source | default(omit) }}"
+    zone: "{{ firewalld_zone }}"
+  with_items: "{{ allow_services }}"
+  loop_control:
+    loop_var: fas
+  register: allow_services_conf
+
+- name: config > Rules for allow ports
+  firewalld:
+    port: "{{ fap.port }}/{{ fap.proto | default('tcp') }}"
+    immediate: "{{ fap.immediate | default(true) }}"
+    permanent: "{{ fap.permanent | default(true) }}"
+    state: "{{ fap.state | default('enabled') }}"
+    source: "{{ fap.source | default(omit) }}"
+    zone: "{{ firewalld_zone }}"
+  with_items: "{{ allow_ports }}"
+  loop_control:
+    loop_var: fap
+  register: allow_ports_conf
+
+- name: config > Rules for forwarded ports
+  firewalld:
+    rich_rule: >
+      rule family="{{ ffp.ip_version | default('ipv4') }}"
+           {{ (`source address="` ~ ffp.source ~ '"') if ffp.source != None }}
+           forward-port port="{{ ffp.port }}"
+                        protocol="{{ ffp.proto | default('tcp') }}"
+                        to-port="{{ ffp.to_port }}"
+    immediate: "{{ ffp.immediate | default(true) }}"
+    permanent: "{{ ffp.permanent | default(true) }}"
+    state: "{{ ffp.state | default('enabled') }}"
+    zone: "{{ firewalld_zone }}"
+  with_items: "{{ forward_ports }}"
+  loop_control:
+    loop_var: ffp
+  register: forward_ports_conf
+
+- name: services > Reload changes
+  command: firewall-cmd --reload
+  when: >
+    allow_services_conf is changed  or
+    allow_ports_conf    is changed  or
+    forward_ports_conf  is changed

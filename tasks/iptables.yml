@@ -1,0 +1,66 @@
+---
+
+- name: check > OS
+  assert:
+    that:
+      - ansible_distribution == "CentOS"
+      - ansible_distribution_major_version == "6"
+
+- name: install > Packages
+  yum:
+    name: iptables
+    state: present
+    update_cache: true
+
+- name: config > Create minimum configuration
+  copy:
+    content: ''
+    dest: /etc/sysconfig/iptables
+    force: false
+
+- name: service > Start service
+  service:
+    name: iptables
+    state: started
+    enabled: true
+
+- name: config > Rules for allow services and ports
+  iptables:
+    table: filter
+    action: append
+    chain: INPUT
+    jump: ACCEPT
+    ip_version: "{{ far.ip_version | default('ipv4') }}"
+    protocol: "{{ far.proto | default('tcp') }}"
+    match: "{{ far.proto | default('tcp') }}"
+    source: "{{ far.source | default(omit) }}"
+    destination_port: "{{ far.service | default(far.port) }}"
+    state: "{{ (far.state | default('enabled') == 'enabled') | ternary('present', 'absent') }}"
+  with_items: "{{ allow_services + allow_ports }}"
+  loop_control:
+    loop_var: far
+  register: allow_rules_conf
+
+- name: config > Rules for forwarded ports
+  iptables:
+    table: nat
+    action: append
+    chain: PREROUTING
+    jump: REDIRECT
+    ip_version: "{{ ffp.ip_version | default('ipv4') }}"
+    protocol: "{{ ffp.proto | default('tcp') }}"
+    match: "{{ ffp.proto | default('tcp') }}"
+    source: "{{ ffp.source | default(omit) }}"
+    destination_port: "{{ ffp.port }}"
+    to_ports: "{{ ffp.to_port }}"
+    state: "{{ (ffp.state | default('enabled') == 'enabled') | ternary('present', 'absent') }}"
+  with_items: "{{ forward_ports }}"
+  loop_control:
+    loop_var: ffp
+  register: forward_ports_conf
+
+- name: services > Reload changes
+  command: service iptables save
+  when: >
+    allow_rules_conf   is changed  or
+    forward_ports_conf is changed
