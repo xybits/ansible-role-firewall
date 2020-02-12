@@ -33,6 +33,17 @@
       command: firewall-cmd --set-default-zone={{ firewalld_zone }}
   when: zone_conf is changed
 
+- name: config > Rules for network interfaces
+  firewalld:
+    interface: "{{ fif }}"
+    immediate: true
+    permanent: true
+    state: enabled
+    zone: "{{ firewalld_zone }}"
+  with_items: "{{ ansible_interfaces | difference(['lo']) }}"
+  loop_control:
+      loop_var: fif
+
 - name: config > Rules for basic services
   firewalld:
     service: "{{ fbs }}"
