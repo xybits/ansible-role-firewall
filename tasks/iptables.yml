@@ -6,11 +6,16 @@
       - ansible_distribution == "CentOS"
       - ansible_distribution_major_version == "6"
 
+
 - name: install > Packages
   yum:
-    name: iptables
+    name: "{{ yum_packages }}"
     state: present
     update_cache: true
+  vars:
+    yum_packages:
+      - libselinux-python
+      - iptables
 
 - name: config > Create minimum configuration
   copy:
@@ -34,7 +39,7 @@
     protocol: "{{ far.proto | default('tcp') }}"
     match: "{{ far.proto | default('tcp') }}"
     source: "{{ far.source | default(omit) }}"
-    destination_port: "{{ far.service | default(far.port) }}"
+    destination_port: "{{ far.port | default(far.service) }}"
     state: "{{ (far.state | default('enabled') == 'enabled') | ternary('present', 'absent') }}"
   with_items: "{{ allow_services + allow_ports }}"
   loop_control:

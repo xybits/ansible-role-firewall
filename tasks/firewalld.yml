@@ -55,13 +55,31 @@
   loop_control:
     loop_var: fbs
 
+- name: config > Create firewalld service entries
+  template:
+    src: service.xml.j2
+    dest: /etc/firewalld/services/{{ fd_service.name }}.xml
+    group: root
+    owner: root
+    mode: 0644
+    trim_blocks: true
+    lstrip_blocks: true
+  with_items: "{{ firewalld_services }}"
+  loop_control:
+    loop_var: fd_service
+  register: firewalld_services_conf
+
 - name: config > Rules for allow services
   firewalld:
-    service: "{{ fas.service }}"
+    rich_rule: >
+      rule family="{{ fas.family | default('ipv4') }}"
+           {{ ('source address="' ~ fas.source ~ '"') if (fas.source | default('') != '') else ('') }}
+           service name="{{ fas.service }}"
+           limit value="1/s"
+           accept
     immediate: "{{ fas.immediate | default(true) }}"
     permanent: "{{ fas.permanent | default(true) }}"
     state: "{{ fas.state | default('enabled') }}"
-    source: "{{ fas.source | default(omit) }}"
     zone: "{{ firewalld_zone }}"
   with_items: "{{ allow_services }}"
   loop_control:
@@ -84,11 +102,12 @@
 - name: config > Rules for forwarded ports
   firewalld:
     rich_rule: >
-      rule family="{{ ffp.ip_version | default('ipv4') }}"
-           {{ (`source address="` ~ ffp.source ~ '"') if ffp.source != None }}
+      rule family="{{ ffp.family | default('ipv4') }}"
+           {{ ('source address="' ~ ffp.source ~ '"') if (ffp.source | default('') != '') else ('') }}
            forward-port port="{{ ffp.port }}"
-                        protocol="{{ ffp.proto | default('tcp') }}"
-                        to-port="{{ ffp.to_port }}"
+             protocol="{{ ffp.proto | default('tcp') }}"
+             {{ ('to-addr="' ~ ffp.to_addr ~ '"') if (ffp.to_addr | default('') != '') else ('') }}
+             to-port="{{ ffp.to_port }}"
     immediate: "{{ ffp.immediate | default(true) }}"
     permanent: "{{ ffp.permanent | default(true) }}"
     state: "{{ ffp.state | default('enabled') }}"
@@ -101,6 +120,7 @@
 - name: services > Reload changes
   command: firewall-cmd --reload
   when: >
-    allow_services_conf is changed  or
-    allow_ports_conf    is changed  or
-    forward_ports_conf  is changed
+    allow_services_conf     is changed  or
+    allow_ports_conf        is changed  or
+    firewalld_services_conf is changed  or
+    forward_ports_conf      is changed

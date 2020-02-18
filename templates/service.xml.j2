@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<service{{ (' version="' ~ fd_service.version ~ '"') if (fd_service.version | default('') != '') else '' }}>
+  <short>{{ fd_service.short | default('') }}</short>
+  <description>{{ fd_service.description | default('') }}</description>
+  {% for ps in (fd_service.ports | default([])) %}
+  <port protocol="{{ ps.protocol | default('tcp') }}" port="{{ ps.port }}"/>
+  {% endfor %}
+  {% for pt in (fd_service.protocols | default([])) %}
+  <protocol value="{{ pt }}"/>
+  {% endfor %}
+  {% for md in (fd_service.modules | default([])) %}
+  <module name="{{ md }}"/>
+  {% endfor %}
+  {% if (fd_service.destination is defined) %}
+  {% if ((fd_service.destination.ipv4 | default('') != '') and (fd_service.destination.ipv6 | default('') != '')) %}
+  <destination ipv4="{{ fd_service.destination.ipv4 }}" ipv6="{{ fd_service.destination.ipv6 }}"/>
+  {% elif (fd_service.destination.ipv4 | default('') != '') %}
+  <destination ipv4="{{ fd_service.destination.ipv4 }}"/>
+  {% elif (fd_service.destination.ipv6 | default('') != '') %}
+  <destination ipv6="{{ fd_service.destination.ipv6 }}"/>
+  {% endif %}
+  {% endif %}
+</service>
